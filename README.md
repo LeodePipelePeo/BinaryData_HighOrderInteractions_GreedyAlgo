@@ -11,7 +11,7 @@ Remember to specify the paths to the two libraries to your compiler (see option 
 On the machine the modified Greedy algorithm was made, eigen3 was only available by adding the eigen folder to the main directory. 
 The eigen3.zip is included which needs to be unzipped and put in the same directory, or change the way Eigen is included.
 
-**To compile:**  `g++ -std=c++11 -I /usr/local/include/eigen3/ -I ./LBFGSpp-master/include -O2 main.cpp ReadDataFile.cpp IndepModel.cpp Models.cpp ModelStatistics.cpp BoltzmannLearning.cpp HeuristicAlgo.cpp BestBasis.cpp`
+**To compile:**  `g++ -std=c++11 -I ./eigen3/ -I ./LBFGSpp-master/include -O2 main.cpp ReadData_DataBasisTransform.cpp IndepModel.cpp Models.cpp ModelStatistics.cpp BoltzmannLearning.cpp HeuristicAlgo.cpp BestBasis.cpp`
 
 **To execute:** `./a.out`
 
