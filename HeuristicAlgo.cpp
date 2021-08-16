@@ -3,7 +3,7 @@
 #include <map>
 #include <cmath>
 #include <list>
-#include <bitset> 
+#include <bitset>
 #include <set>
 
 using namespace std;
@@ -13,18 +13,61 @@ using namespace std;
 /********************************************************************/
 #include "data.h"
 
-unsigned int k1_op(map<uint32_t, unsigned int> Nset, uint32_t Op); //k1 += (bitset<n>( ((*it).first) & op ).count() % 2)*((*it).second); 
+unsigned int k1_op(map<uint32_t, unsigned int> Nset, uint32_t Op); //k1 += (bitset<n>( ((*it).first) & op ).count() % 2)*((*it).second);
 
 /******************************************************************************/
 /**************************** Boltzmann Learning ******************************/
 /******************************************************************************/
-double BoltzmannLearning_Ising(map<uint32_t, unsigned int> Nset, list<Interaction> &list_I, unsigned int N);
+double BoltzmannLearning_Ising(map<uint32_t, unsigned int> Nset, list<Interaction> &list_I, unsigned int N, unsigned int variables = n);
 double BoltzmannLearning_ACE(map<uint32_t, unsigned int> Nset, list<Interaction> &list_I, unsigned int N);
+
+/******************************************************************************/
+/****************************    CHECK OPERATOR:    ***************************/
+/******************************************************************************/
+
+
+
+
+bool stop_function (uint32_t Op, vector<uint32_t> communities)
+{
+  //list<Interaction>::iterator it;
+
+  /*
+  for (it = list_I.begin(); it != list_I.end(); it++)
+  {
+    if ((*it).Op == Op)
+    {
+      return 2;
+    }
+  }
+  */
+  /*
+  cout << "66666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666" << endl;
+  uint32_t test_op = 500;
+  uint32_t test_com = 1;
+  bool a = only_inside_community(test_com, test_op);
+  cout << "test_op = " << bitset<n>(test_op) << "\ttest_com = " << bitset<n>(test_com) << "\toutcome = " << a << endl;
+  cout << "66666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666" << endl;
+  */
+
+  int counter = 0;
+
+  for (int i = 0; i < communities.size(); i++)
+  {
+    if ((communities[i] & Op) > 0)
+    {
+      counter++;
+    }
+  }
+
+  // return false if between communities
+  return (counter == 1)?true:false;
+}
 
 /******************************************************************************/
 /**************************    ADD NEXT OPERATOR:    **************************/
 /******************************************************************************/
-Interaction Next_Model(set<Operator> &m1_ranked, list<Interaction> &list_I, map<uint32_t, unsigned int> Nset, unsigned int N, double *L)
+Interaction Next_Model(set<Operator> &m1_ranked, list<Interaction> &list_I, map<uint32_t, unsigned int> Nset, unsigned int N, double *L, vector<uint32_t> communities, bool final_run, bool *stop, unsigned int variables = n)
 {
   // select the new relevant interaction:
   Interaction I;
@@ -35,14 +78,35 @@ Interaction Next_Model(set<Operator> &m1_ranked, list<Interaction> &list_I, map<
   I.k = bitset<n>(I.Op).count();
   I.g = 0;  I.g_Ising = 0;  I.g_ACE = 0;
   I.av_D = 0; I.av_M = 0;
-  list_I.push_back(I);
+
+  if (final_run == false)
+  {
+    list_I.push_back(I);
+  }
+
+
+  if (final_run == true )
+  {
+    if (stop_function(I.Op, communities) == false)
+    {
+      list_I.push_back(I);
+    }
+    else
+    {
+      *stop = true;
+      //*stop = false;
+    }
+
+  }
+
+
 
   // fit the parameters:
   double K = list_I.size();
   cout << "Op[K" << K << "] = " << Op_new.bin << " = " << bitset<n>(Op_new.bin) << endl;
   cout << "--->> Finding best parameters (gradient descent Ising).." << endl;
   cout << "Best Model: K = " << K << endl;
-  *L = BoltzmannLearning_Ising (Nset, list_I, N);
+  *L = BoltzmannLearning_Ising (Nset, list_I, N, variables);
   cout << "Max Log-Likelihood: L = " << (*L) << endl;
   cout << "BIC: " << (*L) - K * log( ((double) N) /(2.*M_PI)) / 2. <<  endl << endl;
 
@@ -52,12 +116,14 @@ Interaction Next_Model(set<Operator> &m1_ranked, list<Interaction> &list_I, map<
 /******************************************************************************/
 /*********************************  Averages  *********************************/
 /******************************************************************************/
-set<Operator> Rank_m1_Model(set<Operator> allOp, double *P, double Z)
+set<Operator> Rank_m1_Model(set<Operator> allOp, double *P, double Z, unsigned int variables = n)
 {
   set<Operator>::iterator it;  // Set of all the operators ordered by bias from the data
-  
+
   Operator Op;
   set<Operator> allOp_buffer;        // New Set of all the operators re-ordered by bias from the data towards the model
+
+  unsigned int ROp_tot = (1 << variables) - 1;
 
   double DKL_diff=0;
 
@@ -65,7 +131,7 @@ set<Operator> Rank_m1_Model(set<Operator> allOp, double *P, double Z)
   {
     Op = (*it);
     Op.p1_M = 0.;
-    for (uint32_t state = 0; state <= NOp_tot; state++)
+    for (uint32_t state = 0; state <= ROp_tot; state++)
     {
           if( (bitset<n>(Op.bin & state).count())%2 ){ Op.p1_M += P[state]; }    // convention: {-1;1} <--> {1, 0}
     }
@@ -121,6 +187,8 @@ void print_m1_Data_VS_Model_DKLranked(set<Operator> Op_m1_Model, unsigned int N,
     fichier << rank; rank++;
     fichier << "\t" << (*Op).p1_D;
     fichier << "\t" << (*Op).p1_M;
+    //fichier << "\t" << (*Op).av_D;
+    //fichier << "\t" << (*Op).av_M;
     fichier << "\t" << (*Op).S;
     fichier << "\t" << (*Op).DKL;
 
@@ -164,3 +232,5 @@ void print_m1_Data_VS_Model(map<uint32_t, unsigned int> Nset, double* Op_m1_Mode
 
   fichier.close();
 }
+
+

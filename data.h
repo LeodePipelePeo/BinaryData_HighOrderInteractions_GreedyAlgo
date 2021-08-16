@@ -8,15 +8,22 @@ using namespace std;
 /**************************    CONSTANTS    *************************/
 /********************************************************************/
 // *********** To adapt: *********** //
-  const unsigned int n = 9;    // number of spins: only for function "print_basis" to use "bitset<n>()"
-  
+  const unsigned int n = 14;    // number of spins: only for function "print_basis" to use "bitset<n>()"
+
   //INPUT FILE:
-  const string INPUT_folder = "INPUT/"; 
-  //string INPUT_filename = "";
+  const string INPUT_folder = "INPUT/";
+  //string INPUT_filename = "SCOTUS_n9_N895_Ordered.dat";
 
   //OUTPUT FILE:
-  const string OUTPUT_directory = "OUTPUT/"; 
+  const string OUTPUT_directory = "OUTPUT/";
   //string filename = "";  // OUTPUT FILE NAME
+
+  // Reading the original datafile:
+  const string datafile = "INPUT/SCOTUS_n9_N895_OldBasis.dat";
+  //unsigned int N = 0;                                     // data set size
+  //uint32_t bit_n = 1UL << n;
+
+
 
   // Criteria at alpha*sigma  (ex.  1*sigma or 3*sigma)
   const unsigned int alpha = 3;
@@ -40,7 +47,7 @@ struct Interaction
   uint32_t Op;      // binary operator associated to the interaction
   unsigned int k;   // order of the interaction
   double g;         // parameter of the interaction in current representation
-  double g_Ising;   // parameter of the interaction in {-1,+1} representation  
+  double g_Ising;   // parameter of the interaction in {-1,+1} representation
   double g_ACE;     // parameter of the interaction in {0,1} representation
   double av_D;      // empirical average ("d" for data)
   double av_M;      // average in the Model
@@ -52,7 +59,7 @@ struct Operator
   uint32_t bin;     // binary representation of the operator
   mutable unsigned int layer;        // to which layer the operator belongs --> known only after the selection of the best Basis: by default, equal to n (=last layer)
   //unsigned int k1;  // nb of point where op = 1 --> it's a R.V.:  k1 = sum(op[s^i])
-  mutable double p1_M;     // in the model: probability that op = 1 
+  mutable double p1_M;     // in the model: probability that op = 1
   double p1_D;     // in the data: probability that op = 1 --> rem: it's a R.V. = sum(op[s^i]) / N
 
   double S;           // - [ p1*log(p1) + (1-p1)*log(1-p1) ]

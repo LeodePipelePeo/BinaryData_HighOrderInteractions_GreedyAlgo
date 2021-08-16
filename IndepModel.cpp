@@ -49,12 +49,47 @@ list<Interaction> IndepModel_fromBasis(vector<pair<Operator, bool> > best_basis)
     I.g = I.g_Ising;
     I.g_ACE = -2.*I.g_Ising;
     I.av_D = 0; I.av_M = 0;
-    list_I.push_back(I); 
+    list_I.push_back(I);
     cout << "Op = " << bitset<n>(I.Op) << "\t p1 = " << (*BasisOp).first.p1_D << " \t\t h_{-1,1} = " << I.g_Ising << " \t h_{0,1} = " << I.g_ACE << endl;
   }
   cout << endl;
   return list_I;
 }
+
+list<Interaction> IndepModel(map<uint32_t, unsigned int> Nset, unsigned int N, unsigned int variables = n)
+{
+  Interaction I;
+  list<Interaction> list_I;
+
+  double Nd = (double) N;
+  uint32_t Op = 1; double p1;
+
+  cout << Op << endl;
+
+  cout << "Fields associated to the independent model: " << endl;
+  cout << "# 1:Op\t 2:p1 \t 3:h_Ising \t 4:h_ACE" << endl << endl;
+
+  for (int i=0; i<variables; i++)
+  {
+    I.Op = Op;      I.k = 1;
+    p1 = ((double) k1_op(Nset, Op)) / Nd;
+
+
+    I.g_Ising = 0.5*log( (1.- p1) / p1 );
+    I.g_ACE = -2.*I.g_Ising;
+
+    I.av_D = 0; I.av_M = 0;
+    list_I.push_back(I);
+    cout << "Op = " << bitset<n>(I.Op) << "\t p1 = " << p1 << " \t\t h_{-1,1} = " << I.g_Ising << " \t h_{0,1} = " << I.g_ACE << endl;
+
+    Op = Op << 1;
+  }
+  cout << endl;
+
+
+  return list_I;
+}
+
 /******************************************************************************/
 /*********************     CHANGE of BASIS: one datapoint  ********************/
 /******************************************************************************/
@@ -78,7 +113,7 @@ uint32_t state_new(uint32_t s_old, list<Interaction> basis)
 /************    Independent model in the PROBABILITY SPACE:    ***************/
 /******************************************************************************/
 double proba_fromIndepModel(vector<pair<Operator, bool> > best_basis, uint32_t state)  //for the moment: work only in the (s1, s2, .., sn) basis
-{   
+{
   double proba = 1.;
   vector<pair<Operator, bool> >::iterator phi;
 
@@ -93,18 +128,19 @@ double proba_fromIndepModel(vector<pair<Operator, bool> > best_basis, uint32_t s
   return proba;
 }
 
-void IndepModel_VS_data_ProbaSpace(vector<pair<Operator, bool> > best_basis, map<uint32_t, unsigned int> Nset_test, unsigned int N_test, string OUTPUT_filename)
+void IndepModel_VS_data_ProbaSpace(vector<pair<Operator, bool> > best_basis, map<uint32_t, unsigned int> Nset_test, unsigned int N_test, string OUTPUT_filename, unsigned int variables = n)
 {
   map<uint32_t, unsigned int>::iterator it;
   uint32_t state = 1;
   double p_data, p_model, sig, r;
+  unsigned int ROp_tot = (1 << variables) - 1;
 
   fstream file((OUTPUT_filename + "_ProbaSpace.dat").c_str(), ios::out);
   fstream file_pos((OUTPUT_filename+"_ProbaSpace_sigpos.dat").c_str(), ios::out);
   fstream file_neg((OUTPUT_filename+"_ProbaSpace_signeg.dat").c_str(), ios::out);
 
   file << "#N_test = " << N_test << endl;
-  file << "#Total number of accessible states = " << NOp_tot << endl;
+  file << "#Total number of accessible states = " << ROp_tot << endl;
   file << "#Number of visited states, Nset_test.size() = " << Nset_test.size() << endl;
   file << "#" << endl;
   file << "#1: nb of '1's in the state \t #2: Empirical pba state \t #3: Indep Model pba state \t #4: (x-mu)/sig \t #5: state " << endl;
@@ -120,14 +156,14 @@ void IndepModel_VS_data_ProbaSpace(vector<pair<Operator, bool> > best_basis, map
     file << bitset<n>(state).count() << "\t" << p_data  << "\t" << p_model; // << endl;
     file << "\t" << r;
     file << "  \t " << state << " \t " << bitset<n>(state) << endl;
-    if(r > 3) 
-    {  
+    if(r > 3)
+    {
       file_pos << bitset<n>(state).count() << "\t" << p_data  << "\t" << p_model; // << endl;
       file_pos << "\t" << r;
       file_pos << "  \t " << state << " \t " << bitset<n>(state) << endl;
     }
-    if(r < -3) 
-    {  
+    if(r < -3)
+    {
       file_neg << bitset<n>(state).count() << "\t" << p_data  << "\t" << p_model; // << endl;
       file_neg << "\t" << r;
       file_neg << "  \t " << state << " \t " << bitset<n>(state) << endl;
@@ -141,11 +177,12 @@ void IndepModel_VS_data_ProbaSpace(vector<pair<Operator, bool> > best_basis, map
 /******************************************************************************/
 /************    Independent model in the PROBABILITY SPACE:    ***************/
 /******************************************************************************/
-double* Probability_AllStates_Indep(vector<pair<Operator, bool> > best_basis)
+double* Probability_AllStates_Indep(vector<pair<Operator, bool> > best_basis, unsigned int variables = n)
 {
-  double* all_P = (double*)malloc((NOp_tot+1)*sizeof(double));
+  unsigned int ROp_tot = (1 << variables) - 1;
+  double* all_P = (double*)malloc((ROp_tot+1)*sizeof(double));
 
-  for (uint32_t state = 0; state <= NOp_tot; state++)
+  for (uint32_t state = 0; state <= ROp_tot; state++)
   {
     all_P[state] = proba_fromIndepModel(best_basis, state);
   }
@@ -155,7 +192,7 @@ double* Probability_AllStates_Indep(vector<pair<Operator, bool> > best_basis)
 /******************************************************************************/
 /************    Independent model in the FOURIER SPACE:    *******************/
 /******************************************************************************/
-set<Operator> Rank_m1_Indepmodel(set<Operator> allOp, double *P_indep)
+set<Operator> Rank_m1_Indepmodel(set<Operator> allOp, double *P_indep, unsigned int variables = n)
 {
   set<Operator>::iterator it;  // Set of all the operators ordered by bias from the data
 
@@ -163,12 +200,13 @@ set<Operator> Rank_m1_Indepmodel(set<Operator> allOp, double *P_indep)
   set<Operator> allOp_buffer;        // New Set of all the operators re-ordered by bias from the data towards the model
 
   double DKL_diff=0;
+  unsigned int ROp_tot = (1 << variables) - 1;
 
   for (it = allOp.begin(); it != allOp.end(); it++)
   {
     Op = (*it);
     Op.p1_M = 0.;
-    for (uint32_t state = 0; state <= NOp_tot; state++)
+    for (uint32_t state = 0; state <= ROp_tot; state++)
     {
           if( (bitset<n>(Op.bin & state).count())%2 ){ Op.p1_M += P_indep[state]; }    // convention: {-1;1} <--> {1, 0}
     }

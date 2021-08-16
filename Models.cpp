@@ -2,7 +2,7 @@
 #include <fstream>
 #include <map>
 #include <list>
-#include <bitset> 
+#include <bitset>
 
 using namespace std;
 
@@ -11,10 +11,26 @@ using namespace std;
 /********************************************************************/
 #include "data.h"
 
+int Op_Ising(uint32_t Op, uint32_t state);
+double op_av_Ising(map<uint32_t, unsigned int> Nset, uint32_t op, unsigned int N);
+
 /******************************************************************************/
 /**************************   PRINT MODEL IN TERMINAL   ***********************/
 /*****************************    ALL INTERACTIONS    *************************/
 /******************************************************************************/
+void av (list<Interaction> list_I)
+{
+  list<Interaction>::iterator it;
+
+  cout << "# 1:Op \t 2:g_Ising \t 3:g_ACE \t 4:Emp_av \t 5:Model_av" << endl;
+  for (it=list_I.begin(); it!=list_I.end(); it++)
+  {
+    cout << "Op = " << (*it).Op << " = " << bitset<n>((*it).Op) << "\t g_Ising = " << (*it).g_Ising << "\t\t" << "\t g_ACE = " << (*it).g_ACE;
+    cout << "\t\t Emp_av = " << (*it).av_D << "\t Model_av = " << (*it).av_M << endl;
+  }
+  cout << endl;
+}
+
 void PTerm_ListInteraction (list<Interaction> list_I)
 {
   list<Interaction>::iterator it;
@@ -27,6 +43,7 @@ void PTerm_ListInteraction (list<Interaction> list_I)
   }
   cout << endl;
 }
+
 
 /******************************************************************************/
 /******************************      NOISE MODEL     **************************/
@@ -46,7 +63,7 @@ list<Interaction> Noise_Model(vector< pair<uint32_t,double> > IndepModel)
     I.g = I.g_Ising;
     I.g_ACE = -2.*I.g_Ising;
     I.av_D = 0; I.av_M = 0;
-    list_I.push_back(I); 
+    list_I.push_back(I);
   }
 
   return list_I;
@@ -75,7 +92,7 @@ list<Interaction> FullyConnectedPairwise()
   Op1 = 1;
 
   for(int i=1; i<=n; i++) // n(n-1)/2 pairwise interactions
-  {    
+  {
     Op2 = Op1 << 1;
     for (int j=i+1; j<=n; j++)
     {
@@ -83,10 +100,10 @@ list<Interaction> FullyConnectedPairwise()
       I.g = 0;  I.g_Ising = 0;  I.g_ACE = 0;
       I.av_D = 0; I.av_M = 0;
       list_I.push_back(I);
-      
-      Op2 = Op2 << 1; 
+
+      Op2 = Op2 << 1;
     }
-    Op1 = Op1 << 1;      
+    Op1 = Op1 << 1;
   }
   return list_I;
 }
@@ -105,7 +122,7 @@ void find_ij(uint32_t Op_pair, unsigned int *i, unsigned int *j)
   Op_test = Op_test << 1; k++;
 
   while( (k < n) && ((Op_test & Op_pair)!=Op_test) )
-  {  Op_test = Op_test << 1; k++;     } 
+  {  Op_test = Op_test << 1; k++;     }
   *j = k;
 }
 
@@ -116,10 +133,10 @@ void Print_matrix_J_pairwise(string F_name, list<Interaction> list_I)
   double **J = (double **)malloc(n*sizeof(double*));
 
   unsigned int i=0, j=0;
-  for (i = 0; i < n; i++) 
-  {  
-    J[i] = (double*)malloc(n*sizeof(double));  
-    for (j = 0; j < n; j++) 
+  for (i = 0; i < n; i++)
+  {
+    J[i] = (double*)malloc(n*sizeof(double));
+    for (j = 0; j < n; j++)
       { J[i][j] = 0;  }
   }
 
@@ -127,10 +144,10 @@ void Print_matrix_J_pairwise(string F_name, list<Interaction> list_I)
   {
     find_ij((*it).Op, &i, &j);
     if (i==n) {   cout << "Error in \'Print_matrix_J_pairwise\'." << endl;  }
-    else if (j==n) 
-      {   
-        J[(n-1-i)][(n-1-i)] = (*it).g; //0 
-        cout << "field: " << (n-1-i) << " h = " << J[(n-1-i)][(n-1-i)] << endl;  
+    else if (j==n)
+      {
+        J[(n-1-i)][(n-1-i)] = (*it).g; //0
+        cout << "field: " << (n-1-i) << " h = " << J[(n-1-i)][(n-1-i)] << endl;
       }
     else {   J[(n-1-i)][(n-1-j)] = (*it).g;  J[(n-1-j)][(n-1-i)] = (*it).g;  cout << "pairwise: " << (n-1-i) << " " << (n-1-j) << " J = " << (*it).g << endl;  }
   }
@@ -155,3 +172,30 @@ void Print_matrix_J_pairwise(string F_name, list<Interaction> list_I)
   fichier.close();
 }
 
+// LEON ADDED
+
+void All_Op_averages_Ising(map<uint32_t, unsigned int> Nset, double *P, double Z, unsigned int N, string outputfilename, unsigned int variables = n)
+{
+  int Op_s = 1; // value of the operator for the state s ; \in {-1; 1}
+  double av_M = 0., av_D = 0.;
+
+  unsigned int ROp_tot = (1 << variables) - 1;
+
+  fstream file(outputfilename.c_str(), ios::out);
+
+  for (int op = 1; op <= ROp_tot; op++)
+  {
+    av_M = 0.;
+    for (uint32_t state = 0; state <= ROp_tot; state++)
+    {
+      Op_s = Op_Ising(op, state);
+      av_M += Op_s * P[state];
+    }
+    av_M = av_M / Z;
+    av_D = op_av_Ising(Nset, op, N);
+
+    file << "Op = " << op << " = " << bitset<n>(op) << "\t" << "g_Ising = " << "x" << "\tg_ACE = " << "x";
+    file << "\tEmp_av = " << av_D << "\tModel_av = " << av_M << endl;
+  }
+  file.close();
+}

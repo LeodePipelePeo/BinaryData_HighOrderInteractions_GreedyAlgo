@@ -2,7 +2,7 @@
 #include <fstream>
 #include <map>
 #include <list>
-#include <bitset> 
+#include <bitset>
 #include <set>
 
 using namespace std;
@@ -22,20 +22,20 @@ using namespace std;
 /****                     {0 in data <--> +1 in model}                     ****/
 /******************************************************************************/
 
-int Op_Ising(uint32_t Op, uint32_t state)       // Convention {-1;1} 
-  {  return ( (bitset<n>(Op & state).count())%2 )?(-1):1;   } 
+int Op_Ising(uint32_t Op, uint32_t state)       // Convention {-1;1}
+  {  return ( (bitset<n>(Op & state).count())%2 )?(-1):1;   }
 
-int Op_ACE(uint32_t Op, uint32_t state)         // Convention {0;1} 
-  {  return ( (Op & state) == Op );   } 
+int Op_ACE(uint32_t Op, uint32_t state)         // Convention {0;1}
+  {  return ( (Op & state) == Op );   }
 
 // return the contribution to the Energy H(s) associated to this Interaction
-double Ising(Interaction I, uint32_t state, int *Op_s)  // Convention {-1;1} 
+double Ising(Interaction I, uint32_t state, int *Op_s)  // Convention {-1;1}
 {
   *Op_s = Op_Ising(I.Op, state);
   return I.g * (*Op_s);
 }
 
-double ACE(Interaction I, uint32_t state, int *Op_s)    // Convention {0;1} 
+double ACE(Interaction I, uint32_t state, int *Op_s)    // Convention {0;1}
 {
   *Op_s = Op_ACE(I.Op, state);
   return I.g * (*Op_s);
@@ -46,18 +46,20 @@ double ACE(Interaction I, uint32_t state, int *Op_s)    // Convention {0;1}
 /******************************************************************************/
 // return the probability (not normalised) of all the states and compute the partition function
 
-double* Probability_AllStates(double MConvention(Interaction, uint32_t, int*), list<Interaction> list_I, double *Z)  // Convention {-1;1} 
-//!! Convention !!:  {1 in data <--> -1 in model}  and  {0 in data <--> 1 in model} 
+double* Probability_AllStates(double MConvention(Interaction, uint32_t, int*), list<Interaction> list_I, double *Z, unsigned int variables = n)  // Convention {-1;1}
+//!! Convention !!:  {1 in data <--> -1 in model}  and  {0 in data <--> 1 in model}
 {
   double H = 0; // -energy of the state
   int Op_s = 1; // value of the operator for the state s ; \in {-1; 1}
 
+  unsigned int ROp_tot = (1 << variables) - 1;
+
   list<Interaction>::iterator I;
-  double* all_P = (double*)malloc((NOp_tot+1)*sizeof(double));
+  double* all_P = (double*)malloc((ROp_tot+1)*sizeof(double));
 
   (*Z) = 0;
 
-  for (uint32_t state = 0; state <= NOp_tot; state++)
+  for (uint32_t state = 0; state <= ROp_tot; state++)
   {
     H=0;  // here H is (H = -Hamiltonian)
     for (I = list_I.begin(); I != list_I.end(); I++)
@@ -77,33 +79,37 @@ double* Probability_AllStates(double MConvention(Interaction, uint32_t, int*), l
 /******************************************************************************/
 /*************  PRINT PROBA  --  ALL STATES  and  VS DATA  ********************/
 /******************************************************************************/
-void print_proba_state(double* P, double Z, string OUTPUTfilename)
+void print_proba_state(double* P, double Z, string OUTPUTfilename, unsigned int variables = n)
 {
   double Ztest = 0;
   fstream file(OUTPUTfilename.c_str(), ios::out);
 
-  file << "#Total number of accessible states = " << NOp_tot << endl;
+  unsigned int ROp_tot = (1 << variables)-1;
+
+  file << "#Total number of accessible states = " << ROp_tot << endl;
   file << "#" << endl;
   file << "#1: state \t #2: nb of pts in state \t #3: Pba state \t #4: state_bin" << endl;
 
-  for (uint32_t state = 0; state <= NOp_tot; state++)
+  for (uint32_t state = 0; state <= ROp_tot; state++)
   {
     file << state << "\t" << bitset<n>(state).count() << "\t" << P[state]/Z << "\t" << bitset<n>(state) << endl;
     Ztest += P[state];
-  }  
+  }
   cout << "Z = " << Z << "\t Ztest = " << Ztest << endl;
 
   file.close();
 }
 
-void Model_VS_data_ProbaSpace(double *P, double Z, map<uint32_t, unsigned int> Nset_test, unsigned int N_test, string outputfilename)
+void Model_VS_data_ProbaSpace(double *P, double Z, map<uint32_t, unsigned int> Nset_test, unsigned int N_test, string outputfilename, unsigned int variables = n)
 {
   map<uint32_t, unsigned int>::iterator it;
   uint32_t state = 1;
 
+  unsigned int ROp_tot = (1 << variables) - 1;
+
   fstream file(outputfilename.c_str(), ios::out);
   file << "#N_test = " << N_test << endl;
-  file << "#Total number of accessible states = " << NOp_tot << endl;
+  file << "#Total number of accessible states = " << ROp_tot << endl;
   file << "#Number of visited states, Nset_test.size() = " << Nset_test.size() << endl;
   file << "#" << endl;
   file << "#1: nb of '1's in the state \t #2: Empirical pba state \t #3: Model pba state \t #4: state" << endl;
@@ -162,16 +168,16 @@ double LogLikelihood_CompleteModel(map<uint32_t, unsigned int> Nset, unsigned in
 /*********************************  Averages  *********************************/
 /******************************************************************************/
 /************************    Model averages all op    *************************/
-void Model_averages(double MConvention(Interaction, uint32_t, int*), double *P, double Z, list<Interaction> &list_I, unsigned int N) 
+void Model_averages(double MConvention(Interaction, uint32_t, int*), double *P, double Z, list<Interaction> &list_I, unsigned int N, unsigned int variables = n)
 {
   int Op_s = 1; // value of the operator for the state s ; \in {-1; 1}
-
+  unsigned int ROp_tot = (1 << variables) - 1;
   list<Interaction>::iterator I;
 
   for (I = list_I.begin(); I != list_I.end(); I++)
   {
     (*I).av_M = 0.;
-    for (uint32_t state = 0; state <= NOp_tot; state++)
+    for (uint32_t state = 0; state <= ROp_tot; state++)
     {
       MConvention((*I), state, &Op_s); //Op_s = ( (bitset<n>((*I).Op & state).count())%2 )?(-1):1;
       //cout << bitset<n>((*I).Op) << "\t" << bitset<n>(state) << "\t" << (bitset<n>((*I).Op & state).count())%2 << "\t" << Op_s;

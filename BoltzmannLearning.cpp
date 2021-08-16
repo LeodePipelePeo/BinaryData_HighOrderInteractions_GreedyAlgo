@@ -2,13 +2,13 @@
 #include <fstream>
 #include <map>
 #include <list>
-#include <bitset> 
+#include <bitset>
 
 using namespace std;
 
 //For learning:
 //#include <iostream>
-#include <Eigen/Core>
+#include "eigen3/Eigen/Core"
 #include <LBFGS.h>
 
 using namespace Eigen;  //using Eigen::VectorXd;
@@ -31,19 +31,19 @@ double ACE(Interaction I, uint32_t state, int *Op_s);    // s_i in {0;1}    !! C
 /************* PARTITION FUNCTION and PROBA of ALL STATES *********************/
 /******************************************************************************/
 // return the probability (not normalised) of all the states and compute the partition function
-double* Probability_AllStates(double MConvention(Interaction, uint32_t, int*), list<Interaction> list_I, double *Z);
+double* Probability_AllStates(double MConvention(Interaction, uint32_t, int*), list<Interaction> list_I, double *Z, unsigned int variables = n);
 
 /******************************************************************************/
 /****************************   MODEL STATISTICS   ****************************/
 /******************************************************************************/
-void Model_averages(double MConvention(Interaction, uint32_t, int*), double *P, double Z, list<Interaction> &list_I, unsigned int N);
+void Model_averages(double MConvention(Interaction, uint32_t, int*), double *P, double Z, list<Interaction> &list_I, unsigned int N, unsigned int variables = n);
 
 /******************************************************************************/
 /**************************     EMPIRICAL AVERAGES    *************************/
 /******************************************************************************/
 
 /************************     ISING MODEL {+1; -1}    *************************/
-unsigned int k1_op(map<uint32_t, unsigned int> Nset, uint32_t op); //k1 += (bitset<n>( ((*it).first) & op ).count() % 2)*((*it).second); 
+unsigned int k1_op(map<uint32_t, unsigned int> Nset, uint32_t op); //k1 += (bitset<n>( ((*it).first) & op ).count() % 2)*((*it).second);
 
 double op_av_Ising(map<uint32_t, unsigned int> Nset, uint32_t op, unsigned int N)
 {
@@ -79,7 +79,7 @@ double op_av_ACE_0(map<uint32_t, unsigned int> Nset, uint32_t op, unsigned int N
 }
 
 /************************    Empirical averages all op    *************************/
-void empirical_averages_Ising(map<uint32_t, unsigned int> Nset, list<Interaction> &list_I, unsigned int N) 
+void empirical_averages_Ising(map<uint32_t, unsigned int> Nset, list<Interaction> &list_I, unsigned int N)
 {
   list<Interaction>::iterator I;
 
@@ -89,7 +89,7 @@ void empirical_averages_Ising(map<uint32_t, unsigned int> Nset, list<Interaction
   }
 }
 
-void empirical_averages_ACE(map<uint32_t, unsigned int> Nset, list<Interaction> &list_I, unsigned int N) 
+void empirical_averages_ACE(map<uint32_t, unsigned int> Nset, list<Interaction> &list_I, unsigned int N)
 {
   list<Interaction>::iterator I;
 
@@ -110,13 +110,13 @@ void Print_Correlations(map<uint32_t, unsigned int> Nset, unsigned int N)
   double **Cij =  (double **)malloc(n*sizeof(double*));   //Cij = P[si=1 and sj=1]
   for (int i1 = 0; i1 < n; i1++) {  Cij[i1] = (double*)malloc(n*sizeof(double));  }
 
-  double **Cij_fifj =  (double **)malloc(n*sizeof(double*));   //Cij - fi fj = P[si=1 and sj=1] - P[si=1] * P[sj=1] 
+  double **Cij_fifj =  (double **)malloc(n*sizeof(double*));   //Cij - fi fj = P[si=1 and sj=1] - P[si=1] * P[sj=1]
   for (int i1 = 0; i1 < n; i1++) {  Cij_fifj[i1] = (double*)malloc(n*sizeof(double));  }
 
   double **Cij_0 =  (double **)malloc(n*sizeof(double*));   //Cij_0 = P[si=0 and sj=0]
   for (int i1 = 0; i1 < n; i1++) {  Cij_0[i1] = (double*)malloc(n*sizeof(double));  }
 
-  double **Cij_fifj_0 =  (double **)malloc(n*sizeof(double*));   //= P[si=0 and sj=0] - P[si=0] * P[sj=0] 
+  double **Cij_fifj_0 =  (double **)malloc(n*sizeof(double*));   //= P[si=0 and sj=0] - P[si=0] * P[sj=0]
   for (int i1 = 0; i1 < n; i1++) {  Cij_fifj_0[i1] = (double*)malloc(n*sizeof(double));  }
 
   unsigned int i1, i2;
@@ -206,9 +206,9 @@ void Print_Correlations(map<uint32_t, unsigned int> Nset, unsigned int N)
 /******************************************************************************/
 /****************************  LogLikelihood  *********************************/
 /******************************************************************************/
-double LogL(double MConvention(Interaction, uint32_t, int*), list<Interaction> list_I, unsigned int N)
+double LogL(double MConvention(Interaction, uint32_t, int*), list<Interaction> list_I, unsigned int N, unsigned int variables = n)
 {
-  double Z = 0; Probability_AllStates(MConvention, list_I, &Z);
+  double Z = 0; Probability_AllStates(MConvention, list_I, &Z, variables);
   double LogLi = 0;
 //cout << "Zbis = " << Z << endl;
   list<Interaction>::iterator I;
@@ -216,7 +216,7 @@ double LogL(double MConvention(Interaction, uint32_t, int*), list<Interaction> l
   for (I = list_I.begin(); I != list_I.end(); I++)
   {
     LogLi += (*I).g * (*I).av_D;
-  } 
+  }
   LogLi -= log(Z);
   //cout << "LogLbis = " << ((double) N)*LogLi << endl;
 
@@ -231,7 +231,7 @@ double LogL_bis(list<Interaction> list_I, double Z, unsigned int N)
   for (I = list_I.begin(); I != list_I.end(); I++)
   {
     LogLi += (*I).g * (*I).av_D;
-  } 
+  }
   LogLi -= log(Z);
 
   return ((double) N)*LogLi;
@@ -246,8 +246,9 @@ class LogL_class_Ising
 private:
   list<Interaction> li_I;
   unsigned int N;
+  unsigned int variables;
 public:
- LogL_class_Ising(list<Interaction> list_I, unsigned int N_) : li_I(list_I), N(N_) {}
+ LogL_class_Ising(list<Interaction> list_I, unsigned int N_, unsigned int variables_) : li_I(list_I), N(N_), variables(variables_) {}
  double operator()(const VectorXd& x, VectorXd& grad)
  {
   list<Interaction>::iterator I;
@@ -256,8 +257,8 @@ public:
   for (I = li_I.begin(); I != li_I.end(); I++)
   {    (*I).g = x[i];   i++;  }
 
-  double Z = 0; double *P = Probability_AllStates(Ising, li_I, &Z);  //cout << "Z = " << Z << "\t ";
-  Model_averages(Ising, P, Z, li_I, N);
+  double Z = 0; double *P = Probability_AllStates(Ising, li_I, &Z, variables);  //cout << "Z = " << Z << "\t ";
+  Model_averages(Ising, P, Z, li_I, N, variables);
   //PTerm_ListInteraction (li_I);
 
   double LogLi = LogL_bis(li_I, Z, N);      //cout << "LogLi_1 = " << LogLi << endl;
@@ -270,18 +271,18 @@ public:
   {
     //LogLi += x[i] * (*I).av_D;
     //cout << i << "\t g[i] = " << x[i] << "\t <Op_i> = " << (*I).av_D << "\t LogLi = " << LogLi << endl;
-    grad[i] = -((double) N) * ( (*I).av_D - (*I).av_M); 
+    grad[i] = -((double) N) * ( (*I).av_D - (*I).av_M);
     //cout << " " << N << " " << (*I).av_D << " " << (*I).av_M << " " << -N * ( (*I).av_D - (*I).av_M) << " " << grad[i] << endl;
     i++;
-  } 
+  }
   //LogLi -= log(Z);  cout << "LogLi = " << N*LogLi << endl;
   //cout << endl;
-
+  free(P);
   return -LogLi;
  }
 };
 
-double BoltzmannLearning_Ising(map<uint32_t, unsigned int> Nset, list<Interaction> &list_I, unsigned int N)
+double BoltzmannLearning_Ising(map<uint32_t, unsigned int> Nset, list<Interaction> &list_I, unsigned int N, unsigned int variables=n)
 {
   unsigned int K = list_I.size();
   empirical_averages_Ising(Nset, list_I, N);
@@ -290,10 +291,10 @@ double BoltzmannLearning_Ising(map<uint32_t, unsigned int> Nset, list<Interactio
   LBFGSParam<double> param;
   param.epsilon = 1e-6;  //1e-6;
   param.max_iterations = 100;  //100
- 
+
   // Create solver and function object:
   LBFGSSolver<double> solver(param);
-  LogL_class_Ising LogLi(list_I, N);
+  LogL_class_Ising LogLi(list_I, N, variables);
 
   // Initial guess:
   VectorXd g = VectorXd::Zero(K);
@@ -305,15 +306,15 @@ double BoltzmannLearning_Ising(map<uint32_t, unsigned int> Nset, list<Interactio
   //updating the parameters:
   int i=0;  list<Interaction>::iterator I;
   for (I = list_I.begin(); I != list_I.end(); I++)
-  {    
+  {
     (*I).g_Ising = g[i];   (*I).g = g[i];    i++;
   }
 
   //updating the model averages:
-  double Z = 0; double *P = Probability_AllStates(Ising, list_I, &Z);
+  double Z = 0; double *P = Probability_AllStates(Ising, list_I, &Z, variables);
   //cout << "Z = " << Z << "\t ";
-  Model_averages(Ising, P, Z, list_I, N);
-
+  Model_averages(Ising, P, Z, list_I, N, variables);
+  free(P);
 /*
   double Z = 0; double *P = Probability_AllStates(model_convention, list_I, &Z);
   cout << "Z = " << Z << "\t ";
@@ -342,7 +343,7 @@ public:
 
   int i=0;
   for (I = li_I.begin(); I != li_I.end(); I++)
-  {    
+  {
     (*I).g = x[i];   i++;
   }
 
@@ -364,9 +365,9 @@ public:
     grad[i] = -((double) N) * ( (*I).av_D - (*I).av_M);
     //cout << " " << N << " " << (*I).av_D << " " << (*I).av_M << " " << grad[i] << endl;
     i++;
-  } 
+  }
   //LogLi -= log(Z);  cout << "LogLi = " << N*LogLi << endl;
-
+  free(P);
   return -LogLi;
  }
 };
@@ -375,13 +376,13 @@ double BoltzmannLearning_ACE(map<uint32_t, unsigned int> Nset, list<Interaction>
 {
   unsigned int K = list_I.size();
 
-  empirical_averages_ACE(Nset, list_I, N); 
+  empirical_averages_ACE(Nset, list_I, N);
 
   // Set up parameters
   LBFGSParam<double> param;
   param.epsilon = 1e-6; // 1e-6
   param.max_iterations = 100; //100
- 
+
   // Create solver and function object
   LBFGSSolver<double> solver(param);
   LogL_class_ACE LogLi(list_I, N);
@@ -396,7 +397,7 @@ double BoltzmannLearning_ACE(map<uint32_t, unsigned int> Nset, list<Interaction>
   //updating the parameters:
   int i=0;  list<Interaction>::iterator I;
   for (I = list_I.begin(); I != list_I.end(); I++)
-  {    
+  {
     (*I).g_ACE = g[i];   (*I).g = g[i]; i++;
   }
 
@@ -410,7 +411,7 @@ double BoltzmannLearning_ACE(map<uint32_t, unsigned int> Nset, list<Interaction>
 */
   //cout << niter << " iterations" << std::endl;
   //cout << "g = \n" << g.transpose() << std::endl;
-
+  free(P);
   return -maxLogLi;
 }
 
@@ -427,20 +428,20 @@ void gIsing_from_gACE(list<Interaction> &li_I)
 
 //J_ij
   for (I = li_I.begin(); I != li_I.end(); I++)
-  {    
+  {
     if((*I).k == 2)
       {   (*I).g_ACE = 4*((*I).g);  h_add[((*I).Op)] = (*I).g; }
   }
 
 //h_i
   for (I = li_I.begin(); I != li_I.end(); I++)
-  {    
+  {
     if((*I).k == 1)
-    {   (*I).g_ACE = 2*((*I).g);  
+    {   (*I).g_ACE = 2*((*I).g);
       Op_i = (*I).Op;
       Op_j = 1;
-      for (int i=0; i<n; i++) 
-      { 
+      for (int i=0; i<n; i++)
+      {
         if (Op_j != Op_i)
           { (*I).g_ACE -= 2 * h_add[Op_i + Op_j]; }
         Op_j = Op_j << 1;
